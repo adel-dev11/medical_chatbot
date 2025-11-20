@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedChat AI - Medical Assistant</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* === التعديلات الأساسية للـ Responsive + الرسائل === */
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        body { display: flex; flex-direction: column; background: #f5f7fa; }
+
+        .app-container { display: flex; flex: 1; height: 100vh; overflow: hidden; }
+        .sidebar { width: 280px; flex-shrink: 0; background: white; border-right: 1px solid #eee; display: flex; flex-direction: column; transition: transform 0.3s ease; z-index: 100; }
+        .main-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .chat-container { flex: 1; display: flex; flex-direction: column; }
+        .messages-area { flex: 1; overflow-y: auto; padding: 20px; }
+        .chat-input-section { padding: 15px 20px; background: white; border-top: 1px solid #eee; }
+
+        /* إخفاء الـ Sidebar على الموبايل */
+        @media (max-width: 900px) {
+            .sidebar { position: fixed; left: 0; top: 0; height: 100%; transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+        }
+
+        /* تحسين الـ Input على الموبايل */
+        @media (max-width: 600px) {
+            .input-wrapper { flex-direction: column; }
+            .send-btn { width: 100%; border-radius: 16px !important; height: 50px; }
+            .message-input { border-radius: 16px; }
+            .disclaimer-content { flex-direction: column; text-align: center; }
+        }
+
+        /* === تنسيق الرسائل الجديد === */
+        .welcome-section.hidden { display: none; }
+        .messages-wrapper { display: flex; flex-direction: column; gap: 16px; padding: 10px 0; }
+
+        .message {
+            max-width: 80%;
+            padding: 12px 18px;
+            border-radius: 18px;
+            line-height: 1.6;
+            word-wrap: break-word;
+            animation: fadeIn 0.4s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .message.user {
+            background: #343541;
+            color: white;
+            align-self: flex-end;
+            margin-left: auto;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.ai {
+            background: #444654;
+            color: #ececf1;
+            align-self: flex-start;
+            margin-right: auto;
+            border-bottom-left-radius: 4px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 600px) {
+            .message { max-width: 92%; }
+            .messages-area { padding: 15px; }
+        }
+    </style>
+    <style>
+    /* FORCE الألوان مهما حصل – هتشتغل حتى لو الـ modern.css اتحمل بعدها */
+    .message.user .message-content {
+        background: #444654 !important;   /* أزرق قوي لرسايلك */
+        color: white !important;
+        border-radius: 18px 18px 4px 18px !important;
+    }
+
+    .message.ai .message-content {
+        background: #f8fafc !important;   /* أبيض نضيف لرسايل الـ AI */
+        color: #1e293b !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 18px 18px 18px 4px !important;
+    }
+
+    /* لو عايز في الـ Dark Mode يكون أغمق */
+    [data-theme="dark"] .message.ai .message-content,
+    body.dark-mode .message.ai .message-content {
+        background: #1e293b !important;
+        color: #e2e8f0 !important;
+        border-color: #334155 !important;
+    }
+</style>
+</head>
+<body>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-section">
+                    <div class="logo-icon">
+                        <i class="fas fa-stethoscope"></i>
+                    </div>
+                    <h1>MedChat</h1>
+                </div>
+            </div>
+
+            <button class="new-chat-btn" id="new-chat-btn">
+                <i class="fas fa-plus"></i>
+                <span>New Chat</span>
+            </button>
+
+            <div class="chat-history" id="chat-history">
+                <div class="history-placeholder">
+                    <p>No chat history</p>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <button class="settings-btn" id="settings-btn">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </button>
+                <button class="language-btn" id="language-btn">
+                    <i class="fas fa-globe"></i>
+                    <span id="lang-text">English</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Chat Area -->
+        <main class="main-area">
+            <header class="chat-header">
+                <div class="header-content">
+                    <h2 id="chat-title">Medical Assistant</h2>
+                    <p id="chat-subtitle">Powered by AI</p>
+                </div>
+                <div class="header-actions">
+                    <button class="icon-btn" id="info-btn" title="Information">
+                        <i class="fas fa-info-circle"></i>
+                    </button>
+                    <button class="icon-btn" id="export-btn" title="Export">
+                        <i class="fas fa-download"></i>
+                    </button>
+                </div>
+            </header>
+
+            <div class="disclaimer-banner">
+                <div class="disclaimer-content">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <div>
+                        <strong>Medical Disclaimer:</strong>
+                        <p id="disclaimer-text">This AI assistant provides informational content only and is NOT a substitute for professional medical advice, diagnosis, or treatment. Always consult with a qualified healthcare provider.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-container">
+                <div class="messages-area" id="messages-area">
+                    <!-- Welcome Section -->
+                    <div class="welcome-section" id="welcome-section">
+                        <div class="welcome-icon">
+                            <i class="fas fa-heart"></i>
+                        </div>
+                        <h2>Welcome to MedChat AI</h2>
+                        <p>Your intelligent medical assistant</p>
+                        <div class="welcome-message">
+                            <p>
+                                Hello! I'm MedChat AI, your medical assistant. I'm here to help you with medical questions, symptoms, and health information.
+                                <br><br>
+                                <strong>How can I help you today?</strong>
+                                <br><br>
+                                Remember: I provide informational content only. Always consult with a healthcare professional.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- حاوية الرسائل الحقيقية (هتضاف ديناميكيًا) -->
+                    <div class="messages-wrapper" id="messages-wrapper"></div>
+                </div>
+
+                <div class="chat-input-section">
+                    <div class="input-wrapper">
+                        <textarea id="message-input" class="message-input" placeholder="Ask me anything about your health..." rows="1"></textarea>
+                        <button class="send-btn" id="send-btn">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                    <p class="input-hint">MedChat can make mistakes. Always verify with a healthcare professional.</p>
+                </div>
+            </div>
+        </main>
+
+        <!-- Settings Modal -->
+        <div class="modal" id="settings-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Settings</h2>
+                    <button class="close-btn" id="close-settings"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="modal-body">
+                    <div class="setting-group">
+                        <label>Theme</label>
+                        <div class="theme-options">
+                            <button class="theme-btn active" data-theme="light"><i class="fas fa-sun"></i> Light</button>
+                            <button class="theme-btn" data-theme="dark"><i class="fas fa-moon"></i> Dark</button>
+                        </div>
+                    </div>
+                    <div class="setting-group">
+                        <label>Language</label>
+                        <div class="language-options">
+                            <button class="lang-option active" data-lang="en">English</button>
+                            <button class="lang-option" data-lang="ar">العربية</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Info Modal -->
+        <div class="modal" id="info-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>About MedChat AI</h2>
+                    <button class="close-btn" id="close-info"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="modal-body">
+                    <div class="info-section">
+                        <h3>Features</h3>
+                        <ul>
+                            <li>AI-powered medical conversations</li>
+                            <li>Symptom analysis and guidance</li>
+                            <li>Medication information</li>
+                            <li>Health tips and advice</li>
+                            <li>Multi-language support</li>
+                        </ul>
+                    </div>
+                    <div class="info-section">
+                        <h3>Important Disclaimer</h3>
+                        <p>This application is for informational purposes only and is not a substitute for professional medical advice.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript للرسائل + التفاعل -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const messagesArea = document.getElementById("messages-area");
+            const welcomeSection = document.getElementById("welcome-section");
+            const messagesWrapper = document.getElementById("messages-wrapper");
+            const messageInput = document.getElementById("message-input");
+            const sendBtn = document.getElementById("send-btn");
+
+            function addMessage(text, type) {
+                if (welcomeSection) welcomeSection.classList.add("hidden");
+
+                const msg = document.createElement("div");
+                msg.className = `message ${type}`;
+                msg.textContent = text;
+                messagesWrapper.appendChild(msg);
+
+                messagesArea.scrollTop = messagesArea.scrollHeight;
+            }
+
+            function sendMessage() {
+                const text = messageInput.value.trim();
+                if (!text) return;
+
+                addMessage(text, "user");
+
+                // هنا هتحط طلب الـ API بتاعك لاحقًا
+                setTimeout(() => {
+                    addMessage("شكراً لسؤالك! أنا أقوم بتحليل استفسارك الطبي الآن...\n(هذا رد تجريبي - استبدله بالـ backend)", "ai");
+                }, 1000);
+
+                messageInput.value = "";
+                messageInput.style.height = "auto";
+            }
+
+            sendBtn.addEventListener("click", sendMessage);
+            messageInput.addEventListener("keydown", function(e) {
+                if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+
+            // Auto resize textarea
+            messageInput.addEventListener("input", function() {
+                this.style.height = "auto";
+                this.style.height = this.scrollHeight + "px";
+            });
+
+            // فتح وإغلاق المودالز
+            document.getElementById("settings-btn").onclick = () => document.getElementById("settings-modal").classList.add("active");
+            document.getElementById("info-btn").onclick = () => document.getElementById("info-modal").classList.add("active");
+            document.querySelectorAll(".close-btn").forEach(btn => {
+                btn.onclick = () => btn.closest(".modal").classList.remove("active");
+            });
+            window.onclick = (e) => {
+                if (e.target.classList.contains("modal")) e.target.classList.remove("active");
+            };
+        });
+    </script>
+
+    <script src="{{ url_for('static', filename='js/modern.js') }}"></script>
+</body>
+</html>
