@@ -1,7 +1,3 @@
-"""
-NLU Manager - Simple Intent and Entity Recognition
-إدارة فهم اللغة الطبيعية والحوار
-"""
 
 import os
 import json
@@ -10,7 +6,6 @@ from pathlib import Path
 
 
 class NLUManager:
-    """Manage NLU for intent and entity recognition"""
 
     def __init__(self):
         """Initialize NLU Manager"""
