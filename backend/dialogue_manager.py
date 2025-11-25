@@ -1,7 +1,3 @@
-"""
-Dialogue Manager (Improved & Ready)
-يدير سياق المحادثة، الحالة، والردود بطريقة ذكية تشمل التحيات، الأسئلة العامة، والاستفسارات مثل “المدة”.
-"""
 
 from typing import Dict, Any, Optional, List
 from datetime import datetime
@@ -133,9 +129,9 @@ class DialogueManager:
         return self.response_generator.generate_response("", "ask_duration", self.user_context)
 
     def _handle_emergency(self) -> str:
-        return ("⚠️ حالة طوارئ!\n"
+        return (" حالة طوارئ!\n"
                 "يرجى الاتصال برقم الطوارئ فوراً:\n"
-                "📞 911 أو 123\n\n"
+                " 911 أو 123\n\n"
                 "أو توجه إلى أقرب مستشفى فوراً!")
 
     def get_conversation_history(self):
